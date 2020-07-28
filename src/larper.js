@@ -1,10 +1,7 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-/* eslint-disable import/no-extraneous-dependencies */
-/* eslint-disable @typescript-eslint/no-var-requires */
-const fs = require('fs');
+import { readFile, writeFile, readFileSync } from 'fs';
 
-const express = require('express');
-const proxy = require('express-http-proxy');
+import { json } from 'express';
+import proxy from 'express-http-proxy';
 
 function filterKeys(m, keysToKeep) {
   return Object
@@ -78,17 +75,17 @@ function addLarp(larps, larp) {
 
 function writeLarp(outPath, req, res, resData) {
   const larp = makeLarp(req, res, resData);
-  fs.readFile(outPath, (err, data) => {
+  readFile(outPath, (err, data) => {
     const larps = parseLarps(err, data);
     addLarp(larps, larp);
-    fs.writeFile(outPath, JSON.stringify(larps, null, 2), (errW) => {
+    writeFile(outPath, JSON.stringify(larps, null, 2), (errW) => {
       if (errW) throw errW;
     });
   });
 }
 
 function readLarps(outPath) {
-  return JSON.parse(fs.readFileSync(outPath));
+  return JSON.parse(readFileSync(outPath));
 }
 
 function larpWrite(upstream, outpath) {
@@ -131,13 +128,13 @@ function larpRead(outpath) {
   };
 }
 
-module.exports = (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
+export default (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
   if (process.env[enableParam]) {
     if (process.env[modeParam]) {
-      app.use(express.json());
+      app.use(json());
       app.use(larpWrite(upstream, outpath));
     } else {
-      app.use(express.json());
+      app.use(json());
       app.use(larpRead(outpath));
     }
   }
