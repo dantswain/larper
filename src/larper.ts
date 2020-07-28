@@ -1,6 +1,6 @@
 import { readFile, writeFile, readFileSync } from 'fs';
 
-import { json } from 'express';
+import { Application, json } from 'express';
 import proxy from 'express-http-proxy';
 
 function filterKeys(m, keysToKeep) {
@@ -85,7 +85,7 @@ function writeLarp(outPath, req, res, resData) {
 }
 
 function readLarps(outPath) {
-  return JSON.parse(readFileSync(outPath));
+  return JSON.parse(readFileSync(outPath).toString());
 }
 
 function larpWrite(upstream, outpath) {
@@ -128,7 +128,15 @@ function larpRead(outpath) {
   };
 }
 
-export default (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
+export type Larper = (
+  app: Application,
+  upstream: string,
+  outpath: string,
+  enableParam: string,
+  modeParam: string
+) => void;
+
+export const larper: Larper = (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
   if (process.env[enableParam]) {
     if (process.env[modeParam]) {
       app.use(json());
