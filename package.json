@@ -1,0 +1,23 @@
+{
+  "name": "larper",
+  "version": "0.0.1",
+  "description": "Express middleware to record/replay API requests",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com:dantswain/larper.git"
+  },
+  "license": "MIT",
+  "author": {
+    "name": "dantswain",
+    "email": "dan.t.swain@gmail.com"
+  },
+  "depdnencies": {
+    "express": "^4.17.1",
+    "express-http-proxy": "^1.6.2"
+  },
+  "devDependencies": {
+    "typescript": "^3.9.7"
+  }
+}
