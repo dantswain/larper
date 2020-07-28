@@ -4,6 +4,9 @@
   "description": "Express middleware to record/replay API requests",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "scripts": {
+    "lint": "eslint . --ext .ts --ext .js"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com:dantswain/larper.git"
@@ -13,11 +16,16 @@
     "name": "dantswain",
     "email": "dan.t.swain@gmail.com"
   },
-  "depdnencies": {
+  "dependencies": {
     "express": "^4.17.1",
     "express-http-proxy": "^1.6.2"
   },
   "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^3.7.1",
+    "@typescript-eslint/parser": "^3.7.1",
+    "eslint": "^7.5.0",
+    "eslint-config-airbnb-base": "^14.2.0",
+    "eslint-plugin-import": "^2.22.0",
     "typescript": "^3.9.7"
   }
 }
