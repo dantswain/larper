@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "lint": "eslint . --ext .ts --ext .js"
+    "lint": "eslint . --ext .ts --ext .js",
+    "build": "tsc --build --verbose"
   },
   "repository": {
     "type": "git",
