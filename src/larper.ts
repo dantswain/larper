@@ -1,7 +1,7 @@
 import { readFile, writeFile, readFileSync } from 'fs';
 
 import { Application, json } from 'express';
-import proxy from 'express-http-proxy';
+import * as proxy from 'express-http-proxy';
 
 function filterKeys(m, keysToKeep) {
   return Object
@@ -132,8 +132,8 @@ export type Larper = (
   app: Application,
   upstream: string,
   outpath: string,
-  enableParam: string,
-  modeParam: string
+  enableParam?: string,
+  modeParam?: string
 ) => void;
 
 export const larper: Larper = (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
