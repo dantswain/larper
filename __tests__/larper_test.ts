@@ -9,7 +9,6 @@ const upstreamApp = express();
 let server: Server;
 let upstream: Server;
 
-process.env.LARP_MODE = '1';
 process.env.LARP_WRITE = '1';
 
 beforeAll(() => {
@@ -26,8 +25,10 @@ afterAll(() => {
   upstream.close();
 });
 
-test('larper', (done) => {
-  larper(app, 'http://localhost:3002', '_test_larps.json');
+test('larper (middleware)', (done) => {
+  const theLarper = larper('http://localhost:3002/');
+  app.use(express.json());
+  app.use(theLarper);
 
   request(app)
     .get('/api/foo')

@@ -1,6 +1,6 @@
 import { readFile, writeFile, readFileSync } from 'fs';
 
-import { Application, json } from 'express';
+import * as express from 'express';
 import * as proxy from 'express-http-proxy';
 
 function filterKeys(m, keysToKeep) {
@@ -88,7 +88,7 @@ function readLarps(outPath) {
   return JSON.parse(readFileSync(outPath).toString());
 }
 
-function larpWrite(upstream, outpath) {
+function larpWrite(upstream, outpath): Middleware {
   return proxy(
     upstream,
     {
@@ -101,10 +101,10 @@ function larpWrite(upstream, outpath) {
   );
 }
 
-function larpRead(outpath) {
+function larpRead(outpath): Middleware {
   const larps = readLarps(outpath);
   return (req, res, next) => {
-    if (req.url.startsWith('/api')) {
+    if (req.path.startsWith('/api')) {
       const larp = makeReqLarp(req);
       const key = larp.request.url;
       if (key in larps) {
@@ -128,22 +128,38 @@ function larpRead(outpath) {
   };
 }
 
+export type LarperOptions = {
+  outPath?: string;
+  modeParam?: string;
+}
+
+export const defaultLarperOptions = {
+  outPath: 'larps.json',
+  modeParam: 'LARP_WRITE',
+};
+
 export type Larper = (
-  app: Application,
+  app: express.Application,
   upstream: string,
-  outpath: string,
-  enableParam?: string,
-  modeParam?: string
+  options?: LarperOptions,
 ) => void;
 
-export const larper: Larper = (app, upstream, outpath, enableParam = 'LARP_MODE', modeParam = 'LARP_WRITE') => {
-  if (process.env[enableParam]) {
-    if (process.env[modeParam]) {
-      app.use(json());
-      app.use(larpWrite(upstream, outpath));
-    } else {
-      app.use(json());
-      app.use(larpRead(outpath));
+export type Middleware = (
+  req: express.Request,
+  resp: express.Response,
+  next: () => void
+) => void;
+
+export const larper: (
+  upstream: string,
+  options?: LarperOptions
+) => Middleware = (upstream, options = defaultLarperOptions) => {
+  const mergedOptions: LarperOptions = { ...defaultLarperOptions, ...options };
+
+  return (req: express.Request, resp: express.Response, next: () => void) => {
+    if (process.env[mergedOptions.modeParam]) {
+      return larpWrite(upstream, mergedOptions.outPath)(req, resp, next);
     }
-  }
+    return larpRead(mergedOptions.outPath)(req, resp, next);
+  };
 };
