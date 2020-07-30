@@ -45,6 +45,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  larper.doWrite = true;
   clearTestOutput();
 });
 
@@ -106,11 +107,26 @@ test('reads a request from the larp file', (done) => {
 });
 
 test('returns a 404 when there is no larps file', (done) => {
+  larper.doWrite = false;
+
   request(app)
     .get('/api/foo')
     .expect(404)
     .then((resp) => {
       expect(resp.body).toStrictEqual({ error: `${testOutPath} not found` });
+      done();
+    });
+});
+
+test('read defers to local filter', (done) => {
+  larper.doWrite = false;
+
+  request(app)
+    .get('/non-api')
+    .expect(200)
+    .expect('Content-Type', /html/)
+    .then((resp) => {
+      expect(resp.text).toBe('not an api response');
       done();
     });
 });

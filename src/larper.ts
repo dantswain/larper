@@ -187,25 +187,27 @@ export class Larper {
       return;
     }
 
+    if (!this.filter(req)) {
+      next();
+      return;
+    }
+
     const larps = readLarps(this.outPath);
-    if (this.filter(req)) {
-      const larp = makeReqLarp(req);
-      const key = larp.request.url;
-      if (key in larps) {
-        const found = larps[key].findIndex((l) => sameLarp(l, larp));
-        if (found >= 0) {
-          const foundLarp = larps[key][found];
-          resp.set(foundLarp.response.headers);
-          resp.send(foundLarp.response.body);
-        } else {
-          console.log(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
-          next();
-        }
+    const larp = makeReqLarp(req);
+    const key = larp.request.url;
+
+    if (key in larps) {
+      const found = larps[key].findIndex((l) => sameLarp(l, larp));
+      if (found >= 0) {
+        const foundLarp = larps[key][found];
+        resp.set(foundLarp.response.headers);
+        resp.send(foundLarp.response.body);
       } else {
-        console.log(`Could not find any larps for key ${key}`);
+        console.log(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
         next();
       }
     } else {
+      console.log(`Could not find any larps for key ${key}`);
       next();
     }
   }
