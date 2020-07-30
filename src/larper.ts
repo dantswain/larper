@@ -88,19 +88,6 @@ function readLarps(outPath) {
   return JSON.parse(readFileSync(outPath).toString());
 }
 
-function larpWrite(upstream, outpath): Middleware {
-  return proxy(
-    upstream,
-    {
-      filter: (req) => req.url.startsWith('/api'),
-      userResDecorator: (proxyRes, proxyResData, userReq) => {
-        writeLarp(outpath, userReq, proxyRes, proxyResData);
-        return proxyResData;
-      },
-    },
-  );
-}
-
 function larpRead(outpath): Middleware {
   const larps = readLarps(outpath);
   return (req, res, next) => {
@@ -151,6 +138,8 @@ export class Larper {
 
   doWrite: boolean;
 
+  proxy: Middleware;
+
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
     this.outPath = options.outPath || defaultOptions.outPath;
@@ -159,11 +148,22 @@ export class Larper {
     if (process.env[modeParam]) {
       this.doWrite = true;
     }
+
+    this.proxy = proxy(
+      upstream,
+      {
+        filter: (req) => req.url.startsWith('/api'),
+        userResDecorator: (proxyRes, proxyResData, userReq) => {
+          writeLarp(this.outPath, userReq, proxyRes, proxyResData);
+          return proxyResData;
+        },
+      },
+    );
   }
 
   larp(req: express.Request, resp: express.Response, next: () => void): void {
     if (this.doWrite) {
-      larpWrite(this.upstream, this.outPath)(req, resp, next);
+      this.proxy(req, resp, next);
     } else {
       larpRead(this.outPath)(req, resp, next);
     }
