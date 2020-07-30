@@ -95,14 +95,18 @@ function ensureOutDir(outPath: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
+type RequestFilter = (req: express.Request) => boolean;
+
 export type LarperOptions = {
   outPath?: string;
   modeParam?: string;
+  filter?: RequestFilter;
 }
 
 const defaultOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
+  filter: (req: express.Request) => req.path.startsWith('/api'),
 };
 
 type Middleware = (
@@ -120,6 +124,8 @@ export class Larper {
 
   proxy: Middleware;
 
+  filter: RequestFilter;
+
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
     this.outPath = options.outPath || defaultOptions.outPath;
@@ -128,13 +134,14 @@ export class Larper {
     if (process.env[modeParam]) {
       this.doWrite = true;
     }
+    this.filter = options.filter || defaultOptions.filter;
 
     ensureOutDir(this.outPath);
 
     this.proxy = proxy(
       upstream,
       {
-        filter: (req) => req.url.startsWith('/api'),
+        filter: this.filter,
         userResDecorator: (proxyRes, proxyResData, userReq) => {
           writeLarp(this.outPath, userReq, proxyRes, proxyResData);
           return proxyResData;
@@ -153,7 +160,7 @@ export class Larper {
 
   onRead(req: express.Request, resp: express.Response, next: () => void): void {
     const larps = readLarps(this.outPath);
-    if (req.path.startsWith('/api')) {
+    if (this.filter(req)) {
       const larp = makeReqLarp(req);
       const key = larp.request.url;
       if (key in larps) {
