@@ -71,4 +71,38 @@ test('does not proxy when path does not match', (done) => {
     });
 });
 
+test('reads a request from the larp file', (done) => {
+  larper.doWrite = false;
+
+  const larp = {
+    request: {
+      url: '/api/foo',
+      method: 'GET',
+      query: {},
+      body: {},
+      headers: {},
+    },
+    response: {
+      headers: {
+        'from-larper': 'true',
+        'content-type': 'application/json; charset=utf-8',
+      },
+      body: '"ok"',
+    },
+  };
+
+  fs.writeFileSync(testOutPath, JSON.stringify(
+    { '/api/foo': [larp] },
+  ));
+
+  request(app)
+    .get('/api/foo')
+    .expect('Content-Type', /json/)
+    .expect('from-larper', 'true')
+    .then((resp) => {
+      expect(resp.body).toBe('ok');
+      done();
+    });
+});
+
 // test when set to read but file does not exist
