@@ -90,33 +90,6 @@ function readLarps(outPath) {
   return JSON.parse(readFileSync(outPath).toString());
 }
 
-function larpRead(outpath): Middleware {
-  const larps = readLarps(outpath);
-  return (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      const larp = makeReqLarp(req);
-      const key = larp.request.url;
-      if (key in larps) {
-        const found = larps[key].findIndex((l) => sameLarp(l, larp));
-        if (found >= 0) {
-        // eslint-disable-next-line no-param-reassign
-          const foundLarp = larps[key][found];
-          res.set(foundLarp.response.headers);
-          res.send(foundLarp.response.body);
-        } else {
-          console.log(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
-          next();
-        }
-      } else {
-        console.log(`Could not find any larps for key ${key}`);
-        next();
-      }
-    } else {
-      next();
-    }
-  };
-}
-
 function ensureOutDir(outPath: string): void {
   const dir = path.dirname(outPath);
   fs.mkdirSync(dir, { recursive: true });
@@ -174,7 +147,32 @@ export class Larper {
     if (this.doWrite) {
       this.proxy(req, resp, next);
     } else {
-      larpRead(this.outPath)(req, resp, next);
+      this.onRead(req, resp, next);
+    }
+  }
+
+  onRead(req: express.Request, resp: express.Response, next: () => void): void {
+    const larps = readLarps(this.outPath);
+    if (req.path.startsWith('/api')) {
+      const larp = makeReqLarp(req);
+      const key = larp.request.url;
+      if (key in larps) {
+        const found = larps[key].findIndex((l) => sameLarp(l, larp));
+        if (found >= 0) {
+        // eslint-disable-next-line no-param-reassign
+          const foundLarp = larps[key][found];
+          resp.set(foundLarp.response.headers);
+          resp.send(foundLarp.response.body);
+        } else {
+          console.log(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
+          next();
+        }
+      } else {
+        console.log(`Could not find any larps for key ${key}`);
+        next();
+      }
+    } else {
+      next();
     }
   }
 }
