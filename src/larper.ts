@@ -133,27 +133,39 @@ export type LarperOptions = {
   modeParam?: string;
 }
 
-export const defaultLarperOptions = {
+const defaultOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
 };
 
-export type Middleware = (
+type Middleware = (
   req: express.Request,
   resp: express.Response,
   next: () => void
 ) => void;
 
-export const larper: (
-  upstream: string,
-  options?: LarperOptions
-) => Middleware = (upstream, options = defaultLarperOptions) => {
-  const mergedOptions: LarperOptions = { ...defaultLarperOptions, ...options };
+export class Larper {
+  upstream: string;
 
-  return (req: express.Request, resp: express.Response, next: () => void) => {
-    if (process.env[mergedOptions.modeParam]) {
-      return larpWrite(upstream, mergedOptions.outPath)(req, resp, next);
+  outPath: string;
+
+  doWrite: boolean;
+
+  constructor(upstream: string, options: LarperOptions = {}) {
+    this.upstream = upstream;
+    this.outPath = options.outPath || defaultOptions.outPath;
+    const modeParam = options.modeParam || defaultOptions.modeParam;
+    this.doWrite = false;
+    if (process.env[modeParam]) {
+      this.doWrite = true;
     }
-    return larpRead(mergedOptions.outPath)(req, resp, next);
-  };
-};
+  }
+
+  larp(req: express.Request, resp: express.Response, next: () => void): void {
+    if (this.doWrite) {
+      larpWrite(this.upstream, this.outPath)(req, resp, next);
+    } else {
+      larpRead(this.outPath)(req, resp, next);
+    }
+  }
+}

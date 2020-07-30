@@ -2,7 +2,7 @@ import * as express from 'express';
 import * as request from 'supertest';
 import { Server } from 'http';
 
-import { larper } from '../src';
+import { Larper } from '../src';
 
 const app = express();
 const upstreamApp = express();
@@ -26,14 +26,14 @@ afterAll(() => {
 });
 
 test('larper (middleware)', (done) => {
-  const theLarper = larper('http://localhost:3002/');
+  const larper = new Larper('http://localhost:3002/');
   app.use(express.json());
-  app.use(theLarper);
+  app.use(larper.larp.bind(larper));
 
   request(app)
     .get('/api/foo')
-    .expect('Content-Type', /json/)
     .expect(200)
+    .expect('Content-Type', /json/)
     .then((resp) => {
       expect(resp.body).toBe('ok');
       done();

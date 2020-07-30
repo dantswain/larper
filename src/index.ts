@@ -1,1 +1,3 @@
-export { larper, LarperOptions, Middleware } from './larper';
+export {
+  Larper, LarperOptions,
+} from './larper';
