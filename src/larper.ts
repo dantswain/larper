@@ -138,12 +138,6 @@ export const defaultLarperOptions = {
   modeParam: 'LARP_WRITE',
 };
 
-export type Larper = (
-  app: express.Application,
-  upstream: string,
-  options?: LarperOptions,
-) => void;
-
 export type Middleware = (
   req: express.Request,
   resp: express.Response,
