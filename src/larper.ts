@@ -1,3 +1,5 @@
+import * as path from 'path';
+import * as fs from 'fs';
 import { readFile, writeFile, readFileSync } from 'fs';
 
 import * as express from 'express';
@@ -115,6 +117,11 @@ function larpRead(outpath): Middleware {
   };
 }
 
+function ensureOutDir(outPath: string): void {
+  const dir = path.dirname(outPath);
+  fs.mkdirSync(dir, { recursive: true });
+}
+
 export type LarperOptions = {
   outPath?: string;
   modeParam?: string;
@@ -148,6 +155,8 @@ export class Larper {
     if (process.env[modeParam]) {
       this.doWrite = true;
     }
+
+    ensureOutDir(this.outPath);
 
     this.proxy = proxy(
       upstream,
