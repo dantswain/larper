@@ -5,6 +5,28 @@ import { readFile, writeFile, readFileSync } from 'fs';
 import * as express from 'express';
 import * as proxy from 'express-http-proxy';
 
+type Query = Record<string, unknown>;
+type Headers = Record<string, unknown>;
+
+type LarpRequest = {
+  url: string;
+  method: string;
+  query: Query;
+  body: unknown;
+  headers: Headers;
+}
+
+type LarpResponse = {
+  status: number;
+  headers: Headers;
+  body: unknown;
+}
+
+type Larp = {
+  request: LarpRequest;
+  response: LarpResponse;
+}
+
 function filterKeys(m, keysToKeep) {
   return Object
     .keys(m)
@@ -159,6 +181,12 @@ export class Larper {
   }
 
   onRead(req: express.Request, resp: express.Response, next: () => void): void {
+    if (!fs.existsSync(this.outPath)) {
+      resp.status(404);
+      resp.json({ error: `${this.outPath} not found` });
+      return;
+    }
+
     const larps = readLarps(this.outPath);
     if (this.filter(req)) {
       const larp = makeReqLarp(req);
@@ -166,7 +194,6 @@ export class Larper {
       if (key in larps) {
         const found = larps[key].findIndex((l) => sameLarp(l, larp));
         if (found >= 0) {
-        // eslint-disable-next-line no-param-reassign
           const foundLarp = larps[key][found];
           resp.set(foundLarp.response.headers);
           resp.send(foundLarp.response.body);

@@ -105,4 +105,12 @@ test('reads a request from the larp file', (done) => {
     });
 });
 
-// test when set to read but file does not exist
+test('returns a 404 when there is no larps file', (done) => {
+  request(app)
+    .get('/api/foo')
+    .expect(404)
+    .then((resp) => {
+      expect(resp.body).toStrictEqual({ error: `${testOutPath} not found` });
+      done();
+    });
+});
