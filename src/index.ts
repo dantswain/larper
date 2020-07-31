@@ -1,3 +1,3 @@
 export {
-  Larper, LarperOptions,
+  Larp, Larper, LarperOptions,
 } from './larper';

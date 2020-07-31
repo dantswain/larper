@@ -22,7 +22,7 @@ type LarpResponse = {
   body: unknown;
 }
 
-type Larp = {
+export type Larp = {
   request: LarpRequest;
   response: LarpResponse;
 }
