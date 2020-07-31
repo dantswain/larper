@@ -1,6 +1,5 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import { readFile, writeFile, readFileSync } from 'fs';
 
 import * as express from 'express';
 import * as proxy from 'express-http-proxy';
@@ -59,7 +58,7 @@ function makeLarp(req, res, resData) {
       url: req.url,
       method: req.method,
       query: req.query,
-      body: req.body,
+      body: req.body || {},
       headers: filterKeys(req.headers, ['accept', 'content-type', 'authorization']),
     },
     response: {
@@ -68,17 +67,6 @@ function makeLarp(req, res, resData) {
       body: resData.toString(),
     },
   };
-}
-
-function parseLarps(err, data) {
-  if (err) {
-    if (err.code === 'ENOENT') {
-      return {};
-    }
-    throw err;
-  } else {
-    return JSON.parse(data);
-  }
 }
 
 function addLarp(larps, larp) {
@@ -97,19 +85,22 @@ function addLarp(larps, larp) {
   }
 }
 
-function writeLarp(outPath, req, res, resData) {
-  const larp = makeLarp(req, res, resData);
-  readFile(outPath, (err, data) => {
-    const larps = parseLarps(err, data);
-    addLarp(larps, larp);
-    writeFile(outPath, JSON.stringify(larps, null, 2), (errW) => {
-      if (errW) throw errW;
-    });
-  });
+function readLarps(outPath) {
+  return JSON.parse(fs.readFileSync(outPath).toString());
 }
 
-function readLarps(outPath) {
-  return JSON.parse(readFileSync(outPath).toString());
+function readLarpsOrEmpty(outPath) {
+  if (fs.existsSync(outPath)) {
+    return readLarps(outPath);
+  }
+  return {};
+}
+
+function writeLarp(outPath, req, res, resData) {
+  const larp = makeLarp(req, res, resData);
+  const larps = readLarpsOrEmpty(outPath);
+  addLarp(larps, larp);
+  fs.writeFileSync(outPath, JSON.stringify(larps, null, 2));
 }
 
 function ensureOutDir(outPath: string): void {
