@@ -7,6 +7,7 @@
   "scripts": {
     "lint": "eslint . --ext .ts --ext .js",
     "build": "tsc --build --verbose",
+    "prepare": "npm run build",
     "test": "jest"
   },
   "repository": {
