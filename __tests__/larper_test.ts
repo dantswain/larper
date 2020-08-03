@@ -189,12 +189,14 @@ test('read defers to local filter', (done) => {
     });
 });
 
-test('allows us to provide a request transform', (done) => {
+test('allows us to provide a request matcher', (done) => {
   larper.doWrite = false;
 
-  larper.requestTransform = (req: LarpRequest) => {
-    req.query.foo = 'bar';
-    return req;
+  larper.matcher = (r1: LarpRequest, r2: LarpRequest, fallback) => {
+    if (r1.path === '/api/foo' && r2.path === '/api/foo') {
+      return true;
+    }
+    return fallback(r1, r2);
   };
 
   const larp = {

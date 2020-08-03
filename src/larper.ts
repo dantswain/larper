@@ -28,13 +28,17 @@ export type Larp = {
 }
 
 type RequestFilter = (req: express.Request) => boolean;
-type Transform<T> = (t: T) => T;
+type RequestMatcher = (
+  req1: LarpRequest,
+  req2: LarpRequest,
+  fallback: ((req1: LarpRequest, req2: LarpRequest) => boolean)
+) => boolean;
 
 export type LarperOptions = {
   outPath?: string;
   modeParam?: string;
   filter?: RequestFilter;
-  requestTransform?: Transform<LarpRequest>;
+  matcher?: RequestMatcher;
 }
 
 export type Middleware = (
@@ -125,11 +129,11 @@ function ensureOutDir(outPath: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-const defaultOptions = {
+const defaultOptions: LarperOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
   filter: (req: express.Request) => req.path.startsWith('/api'),
-  requestTransform: (req: LarpRequest) => req,
+  matcher: (r1: LarpRequest, r2: LarpRequest, fallback) => fallback(r1, r2),
 };
 
 export class Larper {
@@ -143,7 +147,7 @@ export class Larper {
 
   filter: RequestFilter;
 
-  requestTransform: Transform<LarpRequest>;
+  matcher: RequestMatcher;
 
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
@@ -158,7 +162,7 @@ export class Larper {
       this.doWrite = true;
     }
     this.filter = options.filter || defaultOptions.filter;
-    this.requestTransform = options.requestTransform || defaultOptions.requestTransform;
+    this.matcher = options.matcher || defaultOptions.matcher;
 
     ensureOutDir(this.outPath);
 
@@ -194,7 +198,7 @@ export class Larper {
       return;
     }
 
-    const larp = this.requestTransform(makeReqLarp(req));
+    const larp = makeReqLarp(req);
     const match = this.findMatchingLarp(larp);
 
     if (!match) {
@@ -211,8 +215,8 @@ export class Larper {
 
     if (key in larps) {
       const found = larps[key].findIndex((l: Larp) => {
-        const compareReq = this.requestTransform(l.request);
-        return sameRequest(compareReq, larpIn);
+        const compareReq = l.request;
+        return this.matcher(larpIn, compareReq, sameRequest);
       });
       if (found >= 0) {
         const foundLarp = larps[key][found];
