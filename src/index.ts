@@ -1,7 +1,7 @@
 import { Larper, LarperOptions, Middleware } from './larper';
 
 export {
-  Larp, Larper, LarperOptions,
+  Larp, Larper, LarperOptions, LarpRequest,
 } from './larper';
 
 export function larper(upstream: string, options: LarperOptions): Middleware {

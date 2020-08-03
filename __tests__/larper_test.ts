@@ -4,7 +4,7 @@ import * as express from 'express';
 import * as request from 'supertest';
 import { Server } from 'http';
 
-import { Larp, Larper } from '../src';
+import { Larp, Larper, LarpRequest } from '../src';
 
 const app = express();
 const upstreamApp = express();
@@ -14,12 +14,8 @@ process.env.LARP_WRITE = '1';
 
 let server: Server;
 let upstream: Server;
-const larper = new Larper(
-  'http://localhost:3002/',
-  {
-    outPath: testOutPath,
-  },
-);
+const testLarperOptions = { outPath: testOutPath };
+const larper = new Larper('http://localhost:3002/', testLarperOptions);
 
 function clearTestOutput() {
   if (fs.existsSync(testOutPath)) {
@@ -57,6 +53,7 @@ afterAll(() => {
 
 beforeEach(() => {
   larper.doWrite = true;
+  larper.setOptions(testLarperOptions);
   clearTestOutput();
 });
 
@@ -158,6 +155,7 @@ test('reads a request from the larp file', (done) => {
 
   request(app)
     .get('/api/foo')
+    .expect(200)
     .expect('Content-Type', /json/)
     .expect('from-larper', 'true')
     .then((resp) => {
@@ -187,6 +185,46 @@ test('read defers to local filter', (done) => {
     .expect('Content-Type', /html/)
     .then((resp) => {
       expect(resp.text).toBe('not an api response');
+      done();
+    });
+});
+
+test('allows us to provide a request transform', (done) => {
+  larper.doWrite = false;
+
+  larper.requestTransform = (req: LarpRequest) => {
+    req.query.foo = 'bar';
+    return req;
+  };
+
+  const larp = {
+    request: {
+      path: '/api/foo',
+      method: 'GET',
+      query: { foo: 'bar' },
+      body: {},
+      headers: {},
+    },
+    response: {
+      headers: {
+        'from-larper': 'true',
+        'content-type': 'application/json; charset=utf-8',
+      },
+      body: '"ok"',
+    },
+  };
+
+  fs.writeFileSync(testOutPath, JSON.stringify(
+    { '/api/foo': [larp] },
+  ));
+
+  request(app)
+    .get('/api/foo?foo=baz')
+    .expect(200)
+    .expect('Content-Type', /json/)
+    .expect('from-larper', 'true')
+    .then((resp) => {
+      expect(resp.body).toBe('ok');
       done();
     });
 });

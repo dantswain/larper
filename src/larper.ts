@@ -8,7 +8,7 @@ import * as pino from 'pino';
 type Query = Record<string, unknown>;
 type Headers = Record<string, unknown>;
 
-type LarpRequest = {
+export type LarpRequest = {
   path: string;
   method: string;
   query: Query;
@@ -27,6 +27,22 @@ export type Larp = {
   response: LarpResponse;
 }
 
+type RequestFilter = (req: express.Request) => boolean;
+type Transform<T> = (t: T) => T;
+
+export type LarperOptions = {
+  outPath?: string;
+  modeParam?: string;
+  filter?: RequestFilter;
+  requestTransform?: Transform<LarpRequest>;
+}
+
+export type Middleware = (
+  req: express.Request,
+  resp: express.Response,
+  next: () => void
+) => void;
+
 const logger = pino({ prettyPrint: { colorize: true } });
 
 function filterKeys(m, keysToKeep) {
@@ -39,19 +55,17 @@ function filterKeys(m, keysToKeep) {
     }, {});
 }
 
-function sameLarp(l1, l2) {
-  return JSON.stringify(l1.request) === JSON.stringify(l2.request);
+function sameRequest(l1Req: LarpRequest, l2Req: LarpRequest) {
+  return JSON.stringify(l1Req) === JSON.stringify(l2Req);
 }
 
-function makeReqLarp(req) {
+function makeReqLarp(req: express.Request): LarpRequest {
   return {
-    request: {
-      path: req.path,
-      method: req.method,
-      query: req.query,
-      body: req.body || {},
-      headers: filterKeys(req.headers, ['accept', 'content-type', 'authorization']),
-    },
+    path: req.path,
+    method: req.method,
+    query: req.query,
+    body: req.body || {},
+    headers: filterKeys(req.headers, ['accept', 'content-type', 'authorization']),
   };
 }
 
@@ -75,7 +89,7 @@ function makeLarp(req, res, resData) {
 function addLarp(larps, larp) {
   const key = larp.request.path;
   if (key in larps) {
-    const found = larps[key].findIndex((l) => sameLarp(l, larp));
+    const found = larps[key].findIndex((l) => sameRequest(l, larp.request));
     if (found >= 0) {
       // eslint-disable-next-line no-param-reassign
       larps[key][found] = larp;
@@ -111,25 +125,12 @@ function ensureOutDir(outPath: string): void {
   fs.mkdirSync(dir, { recursive: true });
 }
 
-type RequestFilter = (req: express.Request) => boolean;
-
-export type LarperOptions = {
-  outPath?: string;
-  modeParam?: string;
-  filter?: RequestFilter;
-}
-
 const defaultOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
   filter: (req: express.Request) => req.path.startsWith('/api'),
+  requestTransform: (req: LarpRequest) => req,
 };
-
-export type Middleware = (
-  req: express.Request,
-  resp: express.Response,
-  next: () => void
-) => void;
 
 export class Larper {
   upstream: string;
@@ -142,8 +143,14 @@ export class Larper {
 
   filter: RequestFilter;
 
+  requestTransform: Transform<LarpRequest>;
+
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
+    this.setOptions(options);
+  }
+
+  setOptions(options: LarperOptions): void {
     this.outPath = options.outPath || defaultOptions.outPath;
     const modeParam = options.modeParam || defaultOptions.modeParam;
     this.doWrite = false;
@@ -151,11 +158,12 @@ export class Larper {
       this.doWrite = true;
     }
     this.filter = options.filter || defaultOptions.filter;
+    this.requestTransform = options.requestTransform || defaultOptions.requestTransform;
 
     ensureOutDir(this.outPath);
 
     this.proxy = proxy(
-      upstream,
+      this.upstream,
       {
         filter: this.filter,
         userResDecorator: (proxyRes, proxyResData, userReq) => {
@@ -186,23 +194,34 @@ export class Larper {
       return;
     }
 
-    const larps = readLarps(this.outPath);
-    const larp = makeReqLarp(req);
-    const key = larp.request.path;
+    const larp = this.requestTransform(makeReqLarp(req));
+    const match = this.findMatchingLarp(larp);
 
-    if (key in larps) {
-      const found = larps[key].findIndex((l) => sameLarp(l, larp));
-      if (found >= 0) {
-        const foundLarp = larps[key][found];
-        resp.set(foundLarp.response.headers);
-        resp.send(foundLarp.response.body);
-      } else {
-        logger.warn(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
-        next();
-      }
-    } else {
-      logger.warn(`Could not find any larps for key ${key}`);
+    if (!match) {
       next();
     }
+
+    resp.set(match.response.headers);
+    resp.send(match.response.body);
+  }
+
+  findMatchingLarp(larpIn: LarpRequest): Larp | null {
+    const larps = readLarps(this.outPath);
+    const key = larpIn.path;
+
+    if (key in larps) {
+      const found = larps[key].findIndex((l: Larp) => {
+        const compareReq = this.requestTransform(l.request);
+        return sameRequest(compareReq, larpIn);
+      });
+      if (found >= 0) {
+        const foundLarp = larps[key][found];
+        return foundLarp;
+      }
+      logger.warn(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larpIn)}`);
+      return null;
+    }
+    logger.warn(`Could not find any larps for key ${key}`);
+    return null;
   }
 }
