@@ -122,7 +122,7 @@ const defaultOptions = {
   filter: (req: express.Request) => req.path.startsWith('/api'),
 };
 
-type Middleware = (
+export type Middleware = (
   req: express.Request,
   resp: express.Response,
   next: () => void
