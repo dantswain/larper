@@ -9,7 +9,7 @@ type Query = Record<string, unknown>;
 type Headers = Record<string, unknown>;
 
 type LarpRequest = {
-  url: string;
+  path: string;
   method: string;
   query: Query;
   body: unknown;
@@ -46,7 +46,7 @@ function sameLarp(l1, l2) {
 function makeReqLarp(req) {
   return {
     request: {
-      url: req.url,
+      path: req.path,
       method: req.method,
       query: req.query,
       body: req.body || {},
@@ -58,7 +58,7 @@ function makeReqLarp(req) {
 function makeLarp(req, res, resData) {
   return {
     request: {
-      url: req.url,
+      path: req.path,
       method: req.method,
       query: req.query,
       body: req.body || {},
@@ -73,7 +73,7 @@ function makeLarp(req, res, resData) {
 }
 
 function addLarp(larps, larp) {
-  const key = larp.request.url;
+  const key = larp.request.path;
   if (key in larps) {
     const found = larps[key].findIndex((l) => sameLarp(l, larp));
     if (found >= 0) {
@@ -188,7 +188,7 @@ export class Larper {
 
     const larps = readLarps(this.outPath);
     const larp = makeReqLarp(req);
-    const key = larp.request.url;
+    const key = larp.request.path;
 
     if (key in larps) {
       const found = larps[key].findIndex((l) => sameLarp(l, larp));

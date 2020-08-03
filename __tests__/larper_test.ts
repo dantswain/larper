@@ -90,14 +90,14 @@ test('writes the larp to json', (done) => {
         expect(err).toBe(null);
 
         const parsed = JSON.parse(data.toString());
-        expect(Object.keys(parsed)).toStrictEqual(['/api/foo?bar=baz']);
-        expect(parsed['/api/foo?bar=baz'].length).toBe(1);
+        expect(Object.keys(parsed)).toStrictEqual(['/api/foo']);
+        expect(parsed['/api/foo'].length).toBe(1);
 
-        const withoutDate = dropDate(parsed['/api/foo?bar=baz'][0]);
+        const withoutDate = dropDate(parsed['/api/foo'][0]);
 
         expect(withoutDate).toStrictEqual({
           request: {
-            url: '/api/foo?bar=baz',
+            path: '/api/foo',
             method: 'GET',
             query: { bar: 'baz' },
             body: {},
@@ -137,7 +137,7 @@ test('reads a request from the larp file', (done) => {
 
   const larp = {
     request: {
-      url: '/api/foo',
+      path: '/api/foo',
       method: 'GET',
       query: {},
       body: {},
