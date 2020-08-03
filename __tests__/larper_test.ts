@@ -73,6 +73,7 @@ test('proxies to upstream', (done) => {
 });
 
 function dropDate(larp: Larp) {
+  // eslint-disable-next-line no-param-reassign
   delete larp.response.headers.date;
   return larp;
 }
