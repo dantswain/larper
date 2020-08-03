@@ -1,9 +1,9 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as util from 'util';
 
 import * as express from 'express';
 import * as proxy from 'express-http-proxy';
+import * as pino from 'pino';
 
 type Query = Record<string, unknown>;
 type Headers = Record<string, unknown>;
@@ -27,7 +27,7 @@ export type Larp = {
   response: LarpResponse;
 }
 
-const logger = util.debuglog('larper');
+const logger = pino({ prettyPrint: { colorize: true } });
 
 function filterKeys(m, keysToKeep) {
   return Object
@@ -197,11 +197,11 @@ export class Larper {
         resp.set(foundLarp.response.headers);
         resp.send(foundLarp.response.body);
       } else {
-        logger(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
+        logger.warn(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larp)}`);
         next();
       }
     } else {
-      logger(`Could not find any larps for key ${key}`);
+      logger.warn(`Could not find any larps for key ${key}`);
       next();
     }
   }
