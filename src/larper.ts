@@ -220,6 +220,7 @@ export class Larper {
       });
       if (found >= 0) {
         const foundLarp = larps[key][found];
+        logger.debug(`Found matching larp for key ${key}: ${JSON.stringify(foundLarp)}`);
         return foundLarp;
       }
       logger.warn(`Could not find a matching larp for key ${key} with request ${JSON.stringify(larpIn)}`);
