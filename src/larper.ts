@@ -240,10 +240,10 @@ export class Larper {
 
     if (match == null) {
       next();
+    } else {
+      resp.set(match.response.headers);
+      resp.send(match.response.body);
     }
-
-    resp.set(match.response.headers);
-    resp.send(match.response.body);
   }
 
   findMatchingLarp(larpIn: LarpRequest): Larp | null {
