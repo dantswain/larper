@@ -28,10 +28,11 @@ export type Larp = {
 }
 
 type RequestFilter = (req: express.Request) => boolean;
+type LarpFilter = (larp: Larp) => boolean;
 type RequestMatcher = (
-  req1: LarpRequest,
-  req2: LarpRequest,
-  fallback: ((req1: LarpRequest, req2: LarpRequest) => boolean)
+  req: LarpRequest,
+  larp: Larp,
+  fallback: ((req: LarpRequest, larp: Larp) => boolean)
 ) => boolean;
 
 export type LarperOptions = {
@@ -39,6 +40,7 @@ export type LarperOptions = {
   modeParam?: string;
   filter?: RequestFilter;
   matcher?: RequestMatcher;
+  recFilter?: LarpFilter;
 }
 
 export type Middleware = (
@@ -59,8 +61,8 @@ function filterKeys(m, keysToKeep) {
     }, {});
 }
 
-function sameRequest(l1Req: LarpRequest, l2Req: LarpRequest) {
-  return JSON.stringify(l1Req) === JSON.stringify(l2Req);
+function sameRequest(req: LarpRequest, larp: Larp) {
+  return JSON.stringify(req) === JSON.stringify(larp.request);
 }
 
 function makeReqLarp(req: express.Request): LarpRequest {
@@ -117,11 +119,13 @@ function readLarpsOrEmpty(outPath) {
   return {};
 }
 
-function writeLarp(outPath, req, res, resData) {
+function writeLarp(outPath, req, res, resData, recFilter) {
   const larp = makeLarp(req, res, resData);
-  const larps = readLarpsOrEmpty(outPath);
-  addLarp(larps, larp);
-  fs.writeFileSync(outPath, JSON.stringify(larps, null, 2));
+  if (recFilter(larp)) {
+    const larps = readLarpsOrEmpty(outPath);
+    addLarp(larps, larp);
+    fs.writeFileSync(outPath, JSON.stringify(larps, null, 2));
+  }
 }
 
 function ensureOutDir(outPath: string): void {
@@ -133,7 +137,8 @@ const defaultOptions: LarperOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
   filter: (req: express.Request) => req.path.startsWith('/api'),
-  matcher: (r1: LarpRequest, r2: LarpRequest, fallback) => fallback(r1, r2),
+  matcher: (req: LarpRequest, larp: Larp, fallback) => fallback(req, larp),
+  recFilter: () => true,
 };
 
 export class Larper {
@@ -149,6 +154,8 @@ export class Larper {
 
   matcher: RequestMatcher;
 
+  recFilter: LarpFilter;
+
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
     this.setOptions(options);
@@ -163,6 +170,7 @@ export class Larper {
     }
     this.filter = options.filter || defaultOptions.filter;
     this.matcher = options.matcher || defaultOptions.matcher;
+    this.recFilter = options.recFilter || defaultOptions.recFilter;
 
     ensureOutDir(this.outPath);
 
@@ -171,7 +179,7 @@ export class Larper {
       {
         filter: this.filter,
         userResDecorator: (proxyRes, proxyResData, userReq) => {
-          writeLarp(this.outPath, userReq, proxyRes, proxyResData);
+          writeLarp(this.outPath, userReq, proxyRes, proxyResData, this.recFilter);
           return proxyResData;
         },
       },
@@ -214,10 +222,7 @@ export class Larper {
     const key = larpIn.path;
 
     if (key in larps) {
-      const found = larps[key].findIndex((l: Larp) => {
-        const compareReq = l.request;
-        return this.matcher(larpIn, compareReq, sameRequest);
-      });
+      const found = larps[key].findIndex((l: Larp) => this.matcher(larpIn, l, sameRequest));
       if (found >= 0) {
         const foundLarp = larps[key][found];
         logger.debug(`Found matching larp for key ${key}: ${JSON.stringify(foundLarp)}`);

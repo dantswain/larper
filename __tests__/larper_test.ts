@@ -192,11 +192,15 @@ test('read defers to local filter', (done) => {
 test('allows us to provide a request matcher', (done) => {
   larper.doWrite = false;
 
-  larper.matcher = (r1: LarpRequest, r2: LarpRequest, fallback) => {
-    if (r1.path === '/api/foo' && r2.path === '/api/foo') {
+  larper.matcher = (req: LarpRequest, larp: Larp, fallback) => {
+    if (
+      req.path === '/api/foo'
+      && larp.request.path === '/api/foo'
+      && req.method === 'GET'
+      && larp.request.method === 'GET') {
       return true;
     }
-    return fallback(r1, r2);
+    return fallback(req, larp);
   };
 
   const larp = {
@@ -227,6 +231,21 @@ test('allows us to provide a request matcher', (done) => {
     .expect('from-larper', 'true')
     .then((resp) => {
       expect(resp.body).toBe('ok');
+      done();
+    });
+});
+
+test('allows us to filter what is written', (done) => {
+  larper.recFilter = (larp: Larp) => larp.request.path !== '/api/foo';
+
+  request(app)
+    .get('/api/foo?bar=baz')
+    .expect(200)
+    .expect('Content-Type', /json/)
+    .expect('upstream-header', 'true')
+    .then((resp) => {
+      expect(resp.body).toBe('ok');
+      expect(fs.existsSync(testOutPath)).toBe(false);
       done();
     });
 });
