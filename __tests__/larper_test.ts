@@ -102,6 +102,7 @@ test('writes the larp to json', (done) => {
           },
           response: {
             body: '"ok"',
+            status: 200,
             headers: {
               connection: 'close',
               'content-length': '4',

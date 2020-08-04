@@ -8,6 +8,12 @@ import * as pino from 'pino';
 type Query = Record<string, unknown>;
 type Headers = Record<string, unknown>;
 
+// this field is present when we get the response but it is not part of the
+// express.Response type
+interface Response extends express.Response {
+  headers: Headers;
+}
+
 export type LarpRequest = {
   path: string;
   method: string;
@@ -26,6 +32,8 @@ export type Larp = {
   request: LarpRequest;
   response: LarpResponse;
 }
+
+type LarpDict = Record<string, Array<Larp>>;
 
 type RequestFilter = (req: express.Request) => boolean;
 type LarpFilter = (larp: Larp) => boolean;
@@ -46,12 +54,13 @@ export type LarperOptions = {
 export type Middleware = (
   req: express.Request,
   resp: express.Response,
-  next: () => void
+  next: express.NextFunction,
 ) => void;
 
 const logger = pino({ prettyPrint: { colorize: true } });
 
-function filterKeys(m, keysToKeep) {
+type KeyType = string | number | symbol;
+function filterKeys<Tv>(m: Record<KeyType, Tv>, keysToKeep: Array<KeyType>): Record<KeyType, Tv> {
   return Object
     .keys(m)
     .filter((k) => keysToKeep.includes(k))
@@ -61,7 +70,7 @@ function filterKeys(m, keysToKeep) {
     }, {});
 }
 
-function sameRequest(req: LarpRequest, larp: Larp) {
+function sameRequest(req: LarpRequest, larp: Larp): boolean {
   return JSON.stringify(req) === JSON.stringify(larp.request);
 }
 
@@ -75,7 +84,7 @@ function makeReqLarp(req: express.Request): LarpRequest {
   };
 }
 
-function makeLarp(req, res, resData) {
+function makeLarp(req: express.Request, res: Response, resData: Buffer): Larp {
   return {
     request: {
       path: req.path,
@@ -85,17 +94,17 @@ function makeLarp(req, res, resData) {
       headers: filterKeys(req.headers, ['accept', 'content-type', 'authorization']),
     },
     response: {
-      status: res.status,
+      status: res.statusCode,
       headers: res.headers,
       body: resData.toString(),
     },
   };
 }
 
-function addLarp(larps, larp) {
+function addLarp(larps: LarpDict, larp: Larp): void {
   const key = larp.request.path;
   if (key in larps) {
-    const found = larps[key].findIndex((l) => sameRequest(l, larp.request));
+    const found = larps[key].findIndex((l) => sameRequest(larp.request, l));
     if (found >= 0) {
       // eslint-disable-next-line no-param-reassign
       larps[key][found] = larp;
@@ -108,19 +117,25 @@ function addLarp(larps, larp) {
   }
 }
 
-function readLarps(outPath) {
+function readLarps(outPath: string): LarpDict {
   return JSON.parse(fs.readFileSync(outPath).toString());
 }
 
-function readLarpsOrEmpty(outPath) {
+function readLarpsOrEmpty(outPath): LarpDict {
   if (fs.existsSync(outPath)) {
     return readLarps(outPath);
   }
   return {};
 }
 
-function writeLarp(outPath, req, res, resData, recFilter) {
-  const larp = makeLarp(req, res, resData);
+function writeLarp(
+  outPath: string,
+  req: express.Request,
+  res: express.Response,
+  resData: Buffer,
+  recFilter: LarpFilter,
+) {
+  const larp = makeLarp(req, res as Response, resData);
   if (recFilter(larp)) {
     const larps = readLarpsOrEmpty(outPath);
     addLarp(larps, larp);
@@ -186,7 +201,7 @@ export class Larper {
     );
   }
 
-  larp(req: express.Request, resp: express.Response, next: () => void): void {
+  larp(req: express.Request, resp: express.Response, next: express.NextFunction): void {
     if (this.doWrite) {
       this.proxy(req, resp, next);
     } else {
@@ -194,7 +209,7 @@ export class Larper {
     }
   }
 
-  onRead(req: express.Request, resp: express.Response, next: () => void): void {
+  onRead(req: express.Request, resp: express.Response, next: express.NextFunction): void {
     if (!fs.existsSync(this.outPath)) {
       resp.status(404);
       resp.json({ error: `${this.outPath} not found` });
