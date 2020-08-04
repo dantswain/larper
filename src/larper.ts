@@ -238,7 +238,7 @@ export class Larper {
     const larp = makeReqLarp(req);
     const match = this.findMatchingLarp(larp);
 
-    if (!match) {
+    if (match == null) {
       next();
     }
 

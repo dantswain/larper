@@ -266,3 +266,17 @@ test('allows us to disable everything but the proxy', (done) => {
       done();
     });
 });
+
+test('returns a 404 when no match is found', (done) => {
+  larper.doWrite = false;
+
+  fs.writeFileSync(testOutPath, JSON.stringify({ }));
+
+  request(app)
+    .get('/api/foo')
+    .expect(404)
+    .then((resp) => {
+      expect(resp.body).toStrictEqual({ });
+      done();
+    });
+});
