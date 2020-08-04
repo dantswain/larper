@@ -10,6 +10,7 @@ const app = express();
 const upstreamApp = express();
 const testOutPath = 'larps/test.json';
 
+process.env.LARP = '1';
 process.env.LARP_WRITE = '1';
 
 let server: Server;
@@ -238,6 +239,21 @@ test('allows us to provide a request matcher', (done) => {
 
 test('allows us to filter what is written', (done) => {
   larper.recFilter = (larp: Larp) => larp.request.path !== '/api/foo';
+
+  request(app)
+    .get('/api/foo?bar=baz')
+    .expect(200)
+    .expect('Content-Type', /json/)
+    .expect('upstream-header', 'true')
+    .then((resp) => {
+      expect(resp.body).toBe('ok');
+      expect(fs.existsSync(testOutPath)).toBe(false);
+      done();
+    });
+});
+
+test('allows us to disable everything but the proxy', (done) => {
+  larper.enabled = false;
 
   request(app)
     .get('/api/foo?bar=baz')

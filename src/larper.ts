@@ -46,6 +46,7 @@ type RequestMatcher = (
 export type LarperOptions = {
   outPath?: string;
   modeParam?: string;
+  enableParam?: string;
   filter?: RequestFilter;
   matcher?: RequestMatcher;
   recFilter?: LarpFilter;
@@ -151,6 +152,7 @@ function ensureOutDir(outPath: string): void {
 const defaultOptions: LarperOptions = {
   outPath: 'larps.json',
   modeParam: 'LARP_WRITE',
+  enableParam: 'LARP',
   filter: (req: express.Request) => req.path.startsWith('/api'),
   matcher: (req: LarpRequest, larp: Larp, fallback) => fallback(req, larp),
   recFilter: () => true,
@@ -171,6 +173,8 @@ export class Larper {
 
   recFilter: LarpFilter;
 
+  enabled: boolean;
+
   constructor(upstream: string, options: LarperOptions = {}) {
     this.upstream = upstream;
     this.setOptions(options);
@@ -179,10 +183,18 @@ export class Larper {
   setOptions(options: LarperOptions): void {
     this.outPath = options.outPath || defaultOptions.outPath;
     const modeParam = options.modeParam || defaultOptions.modeParam;
+    const enableParam = options.enableParam || defaultOptions.enableParam;
+
     this.doWrite = false;
     if (process.env[modeParam]) {
       this.doWrite = true;
     }
+
+    this.enabled = false;
+    if (process.env[enableParam]) {
+      this.enabled = true;
+    }
+
     this.filter = options.filter || defaultOptions.filter;
     this.matcher = options.matcher || defaultOptions.matcher;
     this.recFilter = options.recFilter || defaultOptions.recFilter;
@@ -194,7 +206,9 @@ export class Larper {
       {
         filter: this.filter,
         userResDecorator: (proxyRes, proxyResData, userReq) => {
-          writeLarp(this.outPath, userReq, proxyRes, proxyResData, this.recFilter);
+          if (this.enabled) {
+            writeLarp(this.outPath, userReq, proxyRes, proxyResData, this.recFilter);
+          }
           return proxyResData;
         },
       },
@@ -202,7 +216,7 @@ export class Larper {
   }
 
   larp(req: express.Request, resp: express.Response, next: express.NextFunction): void {
-    if (this.doWrite) {
+    if (this.doWrite || !this.enabled) {
       this.proxy(req, resp, next);
     } else {
       this.onRead(req, resp, next);
