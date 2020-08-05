@@ -1,6 +1,6 @@
 {
   "name": "larper",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Express middleware to record/replay API requests",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
