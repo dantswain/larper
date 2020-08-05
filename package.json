@@ -4,6 +4,11 @@
   "description": "Express middleware to record/replay API requests",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE.txt"
+  ],
   "scripts": {
     "lint": "eslint . --ext .ts --ext .js",
     "build": "tsc --build --verbose",
