@@ -1,6 +1,7 @@
 # Larper
 
 [![Build Status](https://travis-ci.org/dantswain/larper.svg?branch=master)](https://travis-ci.org/dantswain/larper)
+[![npm version](https://badge.fury.io/js/larper.svg)](https://badge.fury.io/js/larper)
 
 Larper is an express middleware intended to help UI testing of microservices
 applications.  It has three modes of operation:
